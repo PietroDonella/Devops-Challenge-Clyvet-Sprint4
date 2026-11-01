@@ -1,0 +1,9 @@
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY . .
+RUN mkdir -p /app/logs && chown -R $APP_UID:$APP_UID /app
+USER $APP_UID
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Development
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "ClyvoVet.Api.dll"]

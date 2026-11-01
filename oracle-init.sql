@@ -1,0 +1,3 @@
+ALTER SESSION SET CONTAINER = XEPDB1;
+ALTER SESSION SET CURRENT_SCHEMA = CLYVOVET;
+@/opt/oracle/scripts/startup/script_bd.sql

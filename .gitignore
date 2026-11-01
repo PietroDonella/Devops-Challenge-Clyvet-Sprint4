@@ -1,0 +1,13 @@
+/ClyvoVet/
+
+**/[Bb]in/
+**/[Oo]bj/
+**/.vs/
+**/.idea/
+**/logs/
+**/[Tt]est[Rr]esults/
+*.user
+*.suo
+.env
+*.trx
+*.log

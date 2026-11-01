@@ -1,0 +1,3 @@
+FROM gvenzl/oracle-xe:21-slim-faststart
+COPY script_bd.sql /opt/oracle/scripts/startup/script_bd.sql
+COPY oracle-init.sql /container-entrypoint-initdb.d/01_init.sql

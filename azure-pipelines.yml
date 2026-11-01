@@ -1,0 +1,128 @@
+trigger:
+  branches:
+    include:
+      - master
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: clyvovet-sprint4
+  - name: resourceGroup
+    value: rg-clyvovet-sprint4
+  - name: aciApiName
+    value: aci-clyvovet-api
+
+stages:
+  - stage: CI
+    displayName: CI
+    jobs:
+      - job: Build
+        displayName: Build, testes e artefato
+        steps:
+          - task: UseDotNet@2
+            displayName: Instalar o .NET SDK 10
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+
+          - script: bash clonar-api.sh
+            displayName: Clonar a API .NET
+
+          - script: dotnet restore ClyvoVet/ClyvoVet.sln
+            displayName: Restaurar pacotes
+
+          - script: dotnet build ClyvoVet/ClyvoVet.sln -c Release --no-restore
+            displayName: Compilar
+
+          - script: dotnet test ClyvoVet/ClyvoVet.UnitTests/ClyvoVet.UnitTests.csproj -c Release --no-build --logger trx --results-directory $(Agent.TempDirectory)/TestResults
+            displayName: Executar testes automáticos
+
+          - task: PublishTestResults@2
+            displayName: Publicar resultados dos testes
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: $(Agent.TempDirectory)/TestResults/**/*.trx
+              failTaskOnFailedTests: true
+
+          - script: dotnet publish ClyvoVet/ClyvoVet.Api/ClyvoVet.Api.csproj -c Release -o $(Build.ArtifactStagingDirectory)/app
+            displayName: Gerar a publicação da API
+
+          - task: PublishPipelineArtifact@1
+            displayName: Publicar artefato clyvovet-api
+            inputs:
+              targetPath: $(Build.ArtifactStagingDirectory)/app
+              artifact: clyvovet-api
+
+  - stage: CD
+    displayName: CD
+    dependsOn: CI
+    condition: succeeded()
+    jobs:
+      - job: Deploy
+        displayName: Deploy no Azure Container Instance
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: Baixar artefato clyvovet-api
+            inputs:
+              artifact: clyvovet-api
+              path: $(Pipeline.Workspace)/clyvovet-api
+
+          - task: AzureCLI@2
+            displayName: Enviar imagem ao ACR e atualizar o ACI
+            inputs:
+              azureSubscription: sc-clyvovet-azure
+              scriptType: bash
+              scriptLocation: inlineScript
+              workingDirectory: $(Build.SourcesDirectory)
+              inlineScript: |
+                set -euo pipefail
+                IMAGE="${ACR_LOGIN_SERVER}/clyvovet-api:${IMAGE_TAG}"
+                echo "${ACR_PASSWORD}" | docker login "${ACR_LOGIN_SERVER}" --username "${ACR_USERNAME}" --password-stdin
+                docker build -f Dockerfile.runtime -t "${IMAGE}" "${ARTIFACT_PATH}"
+                docker push "${IMAGE}"
+                az container delete --resource-group "${RESOURCE_GROUP}" --name "${ACI_API_NAME}" --yes || true
+                ok=0
+                for i in 1 2 3 4 5 6; do
+                  if az container create \
+                    --resource-group "${RESOURCE_GROUP}" \
+                    --name "${ACI_API_NAME}" \
+                    --image "${IMAGE}" \
+                    --registry-login-server "${ACR_LOGIN_SERVER}" \
+                    --registry-username "${ACR_USERNAME}" \
+                    --registry-password "${ACR_PASSWORD}" \
+                    --ports 8080 \
+                    --dns-name-label "${ACI_DNS_LABEL}" \
+                    --cpu 1 \
+                    --memory 1.5 \
+                    --os-type Linux \
+                    --location brazilsouth \
+                    --environment-variables ASPNETCORE_URLS=http://+:8080 ASPNETCORE_ENVIRONMENT=Development \
+                    --secure-environment-variables "ConnectionStrings__OracleConnection=${ORACLE_CONNECTION}"; then
+                    ok=1
+                    break
+                  fi
+                  echo "Tentativa ${i} nao concluiu o ACI. Nova tentativa em 20s."
+                  sleep 20
+                done
+                if [ "${ok}" -ne 1 ]; then
+                  echo "O ACI da API nao foi atualizado."
+                  exit 1
+                fi
+                az container show \
+                  --resource-group "${RESOURCE_GROUP}" \
+                  --name "${ACI_API_NAME}" \
+                  --query "{fqdn:ipAddress.fqdn,state:instanceView.state}" \
+                  -o json
+            env:
+              ACR_LOGIN_SERVER: $(ACR_LOGIN_SERVER)
+              ACR_USERNAME: $(ACR_USERNAME)
+              ACR_PASSWORD: $(ACR_PASSWORD)
+              ACI_DNS_LABEL: $(ACI_DNS_LABEL)
+              ORACLE_CONNECTION: $(ORACLE_CONNECTION)
+              RESOURCE_GROUP: $(resourceGroup)
+              ACI_API_NAME: $(aciApiName)
+              IMAGE_TAG: $(Build.BuildId)
+              ARTIFACT_PATH: $(Pipeline.Workspace)/clyvovet-api
