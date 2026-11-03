@@ -1,7 +1,6 @@
-trigger:
-  branches:
-    include:
-      - master
+# A pipeline que executa está no Azure Repos, repositório ClyvoVet, branch master.
+# Esta cópia fica no GitHub só para leitura. O gatilho dela está desligado.
+trigger: none
 
 pr: none
 

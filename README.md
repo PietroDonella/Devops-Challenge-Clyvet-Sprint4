@@ -12,7 +12,7 @@ A Clyvo Vet API é o backend em .NET 10 da clínica veterinária Clyvo. Ela regi
 
 Nesta sprint a mesma API é compilada, testada e publicada por uma esteira no Azure DevOps. O commit na branch `master` dispara o CI. O CD publica a API em um Azure Container Instance. Os dados ficam em um Oracle, também em container na Azure.
 
-O código da API fica em [EnzoVazz/ClyvoVet](https://github.com/EnzoVazz/ClyvoVet). No CI, `clonar-api.sh` clona esse repositório e copia `overlay/AppInfo.cs`. A página inicial e o Swagger mostram o título dessa classe. Tutor e pet são as duas tabelas relacionadas do CRUD.
+O código da API permanece em [EnzoVazz/ClyvoVet](https://github.com/EnzoVazz/ClyvoVet) e não é republicado aqui. A esteira usa a cópia desse repositório no Azure Repos, chamada `ClyvoVet`, na branch `master`. A página inicial e o Swagger mostram o título de `ClyvoVet.Api/AppInfo.cs`. Tutor e pet são as duas tabelas relacionadas do CRUD.
 
 ## Stack
 
@@ -20,9 +20,9 @@ O código da API fica em [EnzoVazz/ClyvoVet](https://github.com/EnzoVazz/ClyvoVe
 |---|---|
 | Aplicação | ASP.NET Core, .NET 10, Entity Framework Core, Oracle |
 | Testes do CI | xUnit e Moq, projeto `ClyvoVet.UnitTests` |
-| Código da API | Clone de `EnzoVazz/ClyvoVet` no CI |
-| Título da página | `overlay/AppInfo.cs`, neste repositório |
-| Esteira | Azure DevOps, arquivo `azure-pipelines.yml` |
+| Código da API | Azure Repos `ClyvoVet`, cópia de `EnzoVazz/ClyvoVet` |
+| Título da página | `ClyvoVet.Api/AppInfo.cs` no Azure Repos |
+| Esteira | Azure DevOps, pipeline `ClyvoVet`, arquivo `azure-pipelines.yml` do Azure Repos |
 | Imagem da API | Azure Container Registry, processo sem privilégio de root |
 | Execução da API | Azure Container Instance `aci-clyvovet-api`, porta 8080 |
 | Banco | Oracle XE em container, ACI `aci-clyvovet-oracle`, serviço `XEPDB1` |
@@ -71,7 +71,7 @@ O desenho com a ordem numerada está em `diagrama-arquitetura.svg`.
 
 1. O desenvolvedor altera o código e envia o commit para a branch `master` no GitHub.
 2. O Azure DevOps dispara o estágio **CI**.
-3. O agente clona a API, aplica `overlay/AppInfo.cs`, restaura os pacotes e compila com o .NET SDK 10.
+3. O agente restaura os pacotes e compila a API que está no Azure Repos com o .NET SDK 10.
 4. O agente executa os testes de `ClyvoVet.UnitTests` e publica o resultado na aba Tests.
 5. O agente gera o `dotnet publish` e publica o artefato `clyvovet-api` na pipeline.
 6. O estágio **CD** começa porque o artefato novo existe. Ele baixa esse artefato.
@@ -159,4 +159,4 @@ O mesmo `SELECT` mostra a linha alterada.
     └── AppInfoTests.cs
 ```
 
-A pasta `ClyvoVet/` aparece só na execução, depois do clone. Ela não faz parte deste repositório.
+A API em execução está no Azure Repos, repositório `ClyvoVet`: https://dev.azure.com/Sprint4-RM561722/Sprint%204%20%E2%80%93%20Azure%20DevOps/_git/ClyvoVet
