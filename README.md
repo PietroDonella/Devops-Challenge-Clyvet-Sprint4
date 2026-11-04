@@ -30,13 +30,13 @@ O código da API permanece em [EnzoVazz/ClyvoVet](https://github.com/EnzoVazz/Cl
 
 ## Banco de dados
 
-O banco aceito nesta entrega é Oracle em container na nuvem. O DDL, os comentários e a carga inicial estão em `script_bd.sql`. O container do banco aplica esse arquivo na criação.
+O banco aceito nesta entrega é Oracle em container na nuvem. O DDL, os comentários e a carga inicial estão em `banco/script_bd.sql`. O container do banco aplica esse arquivo na criação.
 
 As tabelas de negócio são `CLINICA`, `TUTOR`, `VETERINARIO`, `PET`, `PRONTUARIO` e `CONSULTA`. O CRUD demonstrado usa `TUTOR` e `PET`, ligadas por `PET.ID_TUTOR`.
 
 A carga já traz linhas de atendimento, entre elas Ana Paula Souza e Bruno Ferreira em `TUTOR`, e Rex e Mia em `PET`. A identity começa em 100. Os registros novos da API recebem id a partir de 100.
 
-O script `criar-banco.sh` cria o grupo de recursos, o ACR e o ACI do Oracle. A esteira não recria o banco: cada deploy troca somente o container da API, e os dados do Oracle permanecem.
+O script `banco/criar-banco.sh` cria o grupo de recursos, o ACR e o ACI do Oracle. A esteira não recria o banco: cada deploy troca somente o container da API, e os dados do Oracle permanecem.
 
 A senha do usuário `clyvovet` e a connection string ficam na variável secreta `ORACLE_CONNECTION`, no variable group `clyvovet-sprint4`. O `appsettings.json` guarda só o placeholder. A pipeline não contém senha.
 
@@ -48,8 +48,9 @@ A senha do usuário `clyvovet` e a connection string ficam na variável secreta 
 | Visibilidade | Private |
 | Controle de versão | Git |
 | Processo | Agile |
-| Pipeline | `azure-pipelines.yml`, ligada a este repositório |
-| Gatilho | cada alteração na branch `master` |
+| Pipeline | `ClyvoVet`, ligada ao Azure Repos `ClyvoVet` |
+| Gatilho | cada alteração na branch `master` desse repositório |
+| Definição para leitura | `pipeline/azure-pipelines.yml` |
 | Service connection | `sc-clyvovet-azure` |
 | Variable group | `clyvovet-sprint4` |
 
@@ -65,20 +66,20 @@ Variáveis do grupo:
 
 ## Esteira
 
-O desenho com a ordem numerada está em `diagrama-arquitetura.svg`.
+O desenho com a ordem numerada está em `arquitetura/diagrama-arquitetura.svg`.
 
-![Arquitetura e fluxo de CI/CD](diagrama-arquitetura.svg)
+![Arquitetura e fluxo de CI/CD](arquitetura/diagrama-arquitetura.svg)
 
-1. O desenvolvedor altera o código e envia o commit para a branch `master` no GitHub.
+1. O desenvolvedor altera o código da API e envia o commit para a branch `master` do Azure Repos `ClyvoVet`.
 2. O Azure DevOps dispara o estágio **CI**.
 3. O agente restaura os pacotes e compila a API que está no Azure Repos com o .NET SDK 10.
 4. O agente executa os testes de `ClyvoVet.UnitTests` e publica o resultado na aba Tests.
 5. O agente gera o `dotnet publish` e publica o artefato `clyvovet-api` na pipeline.
 6. O estágio **CD** começa porque o artefato novo existe. Ele baixa esse artefato.
-7. O CD monta a imagem com `Dockerfile.runtime` a partir do artefato, envia a imagem ao ACR e recria o ACI `aci-clyvovet-api`.
+7. O CD monta a imagem com `Dockerfile.runtime` a partir do artefato, envia a imagem ao ACR e recria o ACI `aci-clyvovet-api`. A definição da imagem está em `pipeline/Dockerfile.runtime`.
 8. O usuário abre a página no ACI. A API grava e lê o Oracle do ACI `aci-clyvovet-oracle`.
 
-Os testes de integração sobem a API e dependem do Oracle já em execução. O CI executa o projeto de testes unitários clonado, junto com o teste do título aplicado por cima.
+O CI executa os testes unitários do projeto `ClyvoVet.UnitTests`. Os testes de integração sobem a API e dependem do Oracle já em execução, então ficam fora da esteira.
 
 ## Aplicação publicada
 
@@ -102,6 +103,8 @@ sqlplus clyvovet@//localhost/XEPDB1
 A senha é a do usuário `clyvovet` guardada em `ORACLE_CONNECTION`.
 
 ## CRUD de tutor e pet
+
+O Swagger pede o token devolvido por `POST /api/auth/login`. Inclusão e alteração aceitam a role de operação. A exclusão de pet e de tutor aceita Admin ou Veterinario. As contas de demonstração estão no `appsettings.json` da API.
 
 Os exemplos usam registros novos, com id a partir de 100, para a exclusão não esbarrar nas consultas já carregadas. Cada chamada no Swagger é conferida com o `SELECT` correspondente.
 
@@ -145,18 +148,16 @@ O mesmo `SELECT` mostra a linha alterada.
 
 ```text
 ├── README.md
-├── azure-pipelines.yml
-├── diagrama-arquitetura.svg
-├── Dockerfile.runtime
-├── Dockerfile.oracle
-├── oracle-init.sql
-├── script_bd.sql
-├── criar-banco.sh
-├── clonar-api.sh
-└── overlay/
-    ├── AppInfo.cs
-    ├── Program.cs
-    └── AppInfoTests.cs
+├── arquitetura/
+│   └── diagrama-arquitetura.svg
+├── banco/
+│   ├── criar-banco.sh
+│   ├── Dockerfile.oracle
+│   ├── oracle-init.sql
+│   └── script_bd.sql
+└── pipeline/
+    ├── azure-pipelines.yml
+    └── Dockerfile.runtime
 ```
 
 A API em execução está no Azure Repos, repositório `ClyvoVet`: https://dev.azure.com/Sprint4-RM561722/Sprint%204%20%E2%80%93%20Azure%20DevOps/_git/ClyvoVet
